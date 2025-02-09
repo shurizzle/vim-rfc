@@ -244,7 +244,7 @@ fu s:open_doc(typ, no)
 	sil exe 'read' fnameescape(l:file)
 	sil 1d _
 	setl ft=rfc
-	set nomod noma
+	setl nomod noma
 	sil exe 'file' a:typ.l:no
 	redr!
 endf
@@ -308,6 +308,16 @@ fu s:open_entry_by_cr()
 	sil clo
 	cal funcref('<SID>open_' .  tolower(l:typ))(str2nr(l:id))
 endf
+
+if (v:version == 800 && has('patch1630')) || v:version > 800
+	fu! s:trim(s)
+		retu trim(a:s)
+	endf
+el
+	fu! s:trim(s)
+		retu substitute(a:s, '^\v\_s*(.{-})\_s*$', '\1', '')
+	endf
+en
 
 fu rfc#query(query)
 	if type(a:query) == v:t_number
