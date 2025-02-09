@@ -58,7 +58,6 @@ if has('plan9')
 					\ .'ftpfs -q/ -a $user@$dom ftp.rfc-editor.org'."\n"
 					\ ."\n"
 					\ .'LIB=/lib/rfc'."\n"
-					\ .'lc /n'."\n"
 					\ .'cd /n/ftp/in-notes'."\n"
 					\ ."\n"
 					\ .'if(test -f rfc$need.txt){'."\n"
@@ -84,12 +83,75 @@ if has('plan9')
 	endf
 
 	fu s:download_std(no)
-		th 'Unimplemented'
+		let l:script = 'rfork en'."\n"
+					\ .'need='.a:no."\n"
+					\ .'path=(/bin)'."\n"
+					\ .'fn cd'."\n"
+					\ ."\n"
+					\ .'dom=`{ndb/query sys $sysname dom}'."\n"
+					\ .'if(~ $dom '''') dom=$sysname'."\n"
+					\ ."\n"
+					\ .'ftpfs -q/ -a $user@$dom ftp.rfc-editor.org'."\n"
+					\ ."\n"
+					\ .'LIB=/lib/rfc'."\n"
+					\ .'cd /n/ftp/in-notes/std'."\n"
+					\ ."\n"
+					\ .'if(test -f std$need.txt){'."\n"
+					\ .'	cp std$need.txt $LIB/std$need'."\n"
+					\ .'	chmod 664 $LIB/std$need'."\n"
+					\ .'}'."\n"
+					\ ."\n"
+					\ .'if not for(i in std*$need.txt){'."\n"
+					\ .'	target=`{'."\n"
+					\ .'		echo $i | sed '''."\n"
+					\ .'			s/.txt$//'."\n"
+					\ .'			s/std*//'''."\n"
+					\ .'	}'."\n"
+					\ .'	if(~ $target $need){'."\n"
+					\ .'		cp $i $LIB/std$need'."\n"
+					\ .'		chmod 664 $LIB/std$need'."\n"
+					\ .'	}'."\n"
+					\ .'}'."\n"
+		cal system('/bin/rc -b >/dev/null >[2]/dev/null', l:script)
+		if v:shell_error != 0
+			sil cal delete(s:std_file(a:no))
+		en
 	endf
 
-	fu s:read_url(url)
-		sil exe 'r!hget ' . shellescape(a:url)
+	fu s:read_rfc_index()
+		let l:script = 'rfork en'."\n"
+					\ .'path=(/bin)'."\n"
+					\ .'fn cd'."\n"
+					\ ."\n"
+					\ .'dom=`{ndb/query sys $sysname dom}'."\n"
+					\ .'if(~ $dom '''') dom=$sysname'."\n"
+					\ ."\n"
+					\ .'ftpfs -q/ -a $user@$dom ftp.rfc-editor.org || exit $status'."\n"
+					\ ."\n"
+					\ .'cat /n/ftp/in-notes/rfc-index.txt || exit $status'."\n"
+		let l:txt = systemlist('/bin/rc -b >[2]/dev/null', l:script)
 		if v:shell_error == 0
+			sil cal append(line('$'), l:txt)
+			retu v:true
+		el
+			retu v:false
+		en
+	endf
+
+	fu s:read_std_index()
+		let l:script = 'rfork en'."\n"
+					\ .'path=(/bin)'."\n"
+					\ .'fn cd'."\n"
+					\ ."\n"
+					\ .'dom=`{ndb/query sys $sysname dom}'."\n"
+					\ .'if(~ $dom '''') dom=$sysname'."\n"
+					\ ."\n"
+					\ .'ftpfs -q/ -a $user@$dom ftp.rfc-editor.org || exit $status'."\n"
+					\ ."\n"
+					\ .'cat /n/ftp/in-notes/std/std-index.txt || exit $status'."\n"
+		let l:txt = systemlist('/bin/rc -b >[2]/dev/null', l:script)
+		if v:shell_error == 0
+			sil cal append(line('$'), l:txt)
 			retu v:true
 		el
 			retu v:false
@@ -145,6 +207,14 @@ if !has('plan9')
 	fu s:download_std(no)
 		cal s:download(s:std_url(a:no), s:std_file(a:no))
 	endf
+
+	fu s:read_rfc_index()
+		retu s:read_url('https://www.rfc-editor.org/rfc-index.txt')
+	endf
+
+	fu s:read_std_index()
+		retu s:read_url('https://www.ietf.org/rfc/std-index.txt')
+	endf
 en
 
 fu s:open_doc(typ, no)
@@ -194,7 +264,7 @@ fu s:download_index()
 
 	bel 12new ++ff=unix ++enc=utf-8 ++nobin ++edit +setl\ ma +redr!
 	echo 'Downloading INDEX...'
-	if !s:read_url('https://www.rfc-editor.org/rfc-index.txt')
+	if !s:read_rfc_index()
 		sil clo!
 		retu
 	en
@@ -210,7 +280,7 @@ fu s:download_index()
 	$
 	let l:line = line('.') + 1
 
-	if !s:read_url('https://www.ietf.org/rfc/std-index.txt')
+	if !s:read_std_index()
 		sil clo!
 		retu
 	en
@@ -250,12 +320,12 @@ fu rfc#query(query)
 		retu
 	en
 
-	let l:query = trim(a:query)
+	let l:query = s:trim(a:query)
 	if l:query =~ '\V\m\c^rfc \?\d\+$'
-		cal s:open_rfc(trim(l:query[3:]))
+		cal s:open_rfc(s:trim(l:query[3:]))
 		retu
 	elsei l:query =~ '\V\m\c^std \?\d\+$'
-		cal s:open_std(trim(l:query[3:]))
+		cal s:open_std(s:trim(l:query[3:]))
 		retu
 	en
 	if l:query =~ '\V\m^\d\+$'
