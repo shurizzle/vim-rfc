@@ -309,6 +309,16 @@ fu s:open_entry_by_cr()
 	cal funcref('<SID>open_' .  tolower(l:typ))(str2nr(l:id))
 endf
 
+if (v:version == 800 && has('patch1630')) || v:version > 800
+	fu! s:trim(s)
+		retu trim(a:s)
+	endf
+el
+	fu! s:trim(s)
+		retu substitute(a:s, '^\v\_s*(.{-})\_s*$', '\1', '')
+	endf
+en
+
 fu rfc#query(query)
 	if type(a:query) == v:t_number
 		cal s:open_rfc(a:query)
